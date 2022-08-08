@@ -10,16 +10,6 @@ from models.amenity import Amenity
 from models.review import Review
 import json
 
-classes = {
-    "BaseModel": BaseModel,
-    "User": User,
-    "Place": Place,
-    "State": State,
-    "City": City,
-    "Amenity": Amenity,
-    "Review": Review,
-}
-
 
 class FileStorage:
     """
@@ -36,27 +26,28 @@ class FileStorage:
 
     def new(self, obj):
         """sets in __objects the obj with key <obj class name>.id"""
-        key = obj.__class__.__name__ + "." + obj.__dict__["id"]
-        new_dict = {key: obj}
-        self.__objects.update(new_dict)
+        if obj:
+            key = '{}.{}'.format(type(obj).__name__, obj.id)
+            self.__objects[key] = obj
 
     def save(self):
         """Serializes __objects to the JSON file (path: __file_path)"""
         new_dict = {}
         for key, value in self.__objects.items():
-            new_dict.update({key: value.to_dict()})
+            new_dict[key] = value.to_dict()
+
+        json_str = json.dumps(new_dict)
 
         with open(self.__file_path, mode="w+", encoding="utf-8") as file:
-            json.dump(new_dict, file)
+            file.write(json_str)
 
     def reload(self):
         """Deserializes the JSON file to __objects"""
         try:
             with open(self.__file_path, mode="r", encoding="utf-8") as file:
                 json_string = json.load(file)
-                for key, value in json_string.items():
-                    a = classes[value["__class__"]](**value)
-                    new_dict = {key: a}
-                    self.__objects.update(new_dict)
-        except Exception:
+                for key in json_string.values():
+                    clas = key["__class__"]
+                    self.new(eval("{}({})".format(clas, '**key')))
+        except FileNotFoundError:
             pass
